@@ -1567,17 +1567,34 @@ bool CWallet::SelectStakeCoins(std::set<std::pair<const CWalletTx*, unsigned int
     AvailableCoins(vCoins, true);
     CAmount nAmountSelected = 0;
 
+    unsigned int nStakeMinAgeCurrent = nStakeMinAge;
+    int nStakeDepth = Params().COINBASE_MATURITY();
+    if (IsSporkActive(SPORK_17_STAKE_MINIMUM_AGE)) {
+        nStakeMinAgeCurrent = nStakeMinAge2;
+        nStakeDepth = Params().Stake_MinConfirmations();
+    }
+
+    CAmount nStakeAmount = 0;
+    if (IsSporkActive(SPORK_18_STAKE_MINIMUM_SIZE)) {
+        nStakeAmount = Params().Stake_MinAmount();
+    }
+
     BOOST_FOREACH (const COutput& out, vCoins) {
+        int64_t nTxTime = out.tx->GetTxTime();
         //make sure not to outrun target amount
         if (nAmountSelected + out.tx->vout[out.i].nValue > nTargetAmount)
             continue;
 
+        //require a minimum amount to stake
+        if (out.tx->vout[out.i].nValue < nStakeAmount)
+            continue;
+
         //check for min age
-        if (GetTime() - out.tx->GetTxTime() < nStakeMinAge)
+        if (GetAdjustedTime() - nTxTime < nStakeMinAgeCurrent)
             continue;
 
         //check that it is matured
-        if (out.nDepth < (out.tx->IsCoinStake() ? Params().COINBASE_MATURITY() : 10))
+        if (out.nDepth < (out.tx->IsCoinStake() ? nStakeDepth : 10))
             continue;
 
         //add to our stake set
@@ -1593,15 +1610,38 @@ bool CWallet::MintableCoins()
     CAmount nBalance = GetBalance();
     if (mapArgs.count("-reservebalance") && !ParseMoney(mapArgs["-reservebalance"], nReserveBalance))
         return error("MintableCoins() : invalid reserve balance amount");
-    if (nBalance <= nReserveBalance)
+
+    unsigned int nStakeMinAgeCurrent = nStakeMinAge;
+    int nMinDepth = Params().COINBASE_MATURITY();
+    if (IsSporkActive(SPORK_17_STAKE_MINIMUM_AGE)) {
+        nStakeMinAgeCurrent = nStakeMinAge2;
+        nMinDepth = Params().Stake_MinConfirmations();
+    }
+
+    CAmount nMinAmount = 0.0;
+    if (IsSporkActive(SPORK_18_STAKE_MINIMUM_SIZE)) {
+        nMinAmount = Params().Stake_MinAmount();
+    }
+
+    if (nBalance <= nReserveBalance || nBalance <= nMinAmount)
         return false;
 
     vector<COutput> vCoins;
     AvailableCoins(vCoins, true);
-
+    
     BOOST_FOREACH (const COutput& out, vCoins) {
-        if (GetTime() - out.tx->GetTxTime() > nStakeMinAge)
-            return true;
+        int64_t nTxTime = out.tx->GetTxTime();
+        // Make sure minimum depth has been matched.
+        if (out.tx->GetDepthInMainChain(false) <= nMinDepth)
+           continue;
+
+        // Make sure minimum amount is met for staking.
+        if (out.Value() <= nMinAmount)
+           continue;
+
+        // Min age check
+        if (GetAdjustedTime() - nTxTime > nStakeMinAgeCurrent)
+           return true;
     }
 
     return false;

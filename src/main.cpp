@@ -73,6 +73,7 @@ unsigned int nCoinCacheSize = 5000;
 bool fAlerts = DEFAULT_ALERTS;
 
 unsigned int nStakeMinAge = 60 * 60;
+unsigned int nStakeMinAge2 = 6 * 60 * 60;
 int64_t nReserveBalance = 0;
 
 CFeeRate minRelayTxFee = CFeeRate(10000000);
@@ -3066,6 +3067,38 @@ bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW, bo
         for (unsigned int i = 2; i < block.vtx.size(); i++)
             if (block.vtx[i].IsCoinStake())
                 return state.DoS(100, error("CheckBlock() : more than one coinstake"));
+
+        if (IsSporkActive(SPORK_17_STAKE_MINIMUM_AGE) && block.GetBlockTime() >= GetSporkValue(SPORK_17_STAKE_MINIMUM_AGE)) {
+
+            // Check for coin age.
+            // First try finding the previous transaction in database.
+            CTransaction txPrev;
+            uint256 hashBlockPrev;
+            if (!GetTransaction(block.vtx[1].vin[0].prevout.hash, txPrev, hashBlockPrev, true))
+                return state.DoS(100, error("CheckBlock() : stake failed to find vin transaction"));
+            // Find block in map.
+            CBlockIndex* pindex = NULL;
+            BlockMap::iterator it = mapBlockIndex.find(hashBlockPrev);
+            if (it != mapBlockIndex.end())
+                pindex = it->second;
+            else
+                return state.DoS(100, error("CheckBlock() : stake failed to find block index"));
+
+            // Check block time vs stake age requirement.
+            if (pindex->GetBlockHeader().nTime + nStakeMinAge2 > GetAdjustedTime())
+                return state.DoS(100, error("CheckBlock() : stake under min. stake age"));
+
+            // Check that the prev. stake block has required confirmations by height.
+            if (chainActive.Tip()->nHeight - pindex->nHeight < Params().Stake_MinConfirmations())
+                return state.DoS(100, error("CheckBlock() : stake under min. required confirmations"));
+
+        }
+
+        if (IsSporkActive(SPORK_18_STAKE_MINIMUM_SIZE) && block.GetBlockTime() >= GetSporkValue(SPORK_18_STAKE_MINIMUM_SIZE)) {
+            // Check for minimum value.
+            if (block.vtx[1].vout[1].nValue < Params().Stake_MinAmount())
+                return state.DoS(100, error("CheckBlock() : stake under min. stake value"));
+        }
     }
 
     // ----------- InstantSend transaction scanning -----------
@@ -5372,17 +5405,17 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
 int ActiveProtocol()
 {
 
-    //  SPORK_14 is used for 70921.
-
+    //  SPORK_14 will be used for future release.
+    /*
     if (IsSporkActive(SPORK_14_NEW_PROTOCOL_ENFORCEMENT))
             return MIN_PEER_PROTO_VERSION_AFTER_ENFORCEMENT;
-
+    */
     
-    // SPORK_15 will be used for future release.
-    /*
+    // SPORK_15 is used for 70922.
+
     if (IsSporkActive(SPORK_15_NEW_PROTOCOL_ENFORCEMENT_2))
             return MIN_PEER_PROTO_VERSION_AFTER_ENFORCEMENT;
-    */
+
     
     return MIN_PEER_PROTO_VERSION_BEFORE_ENFORCEMENT;
 
