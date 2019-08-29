@@ -50,11 +50,12 @@ static Checkpoints::MapCheckpoints mapCheckpoints =
     (89875, uint256("ff4960011b696074be79cb9ddce78a375553e2ecb0faf608e2d5c05845be76fd"))
     (160790, uint256("d4626532c209ef9363af91701d1a2b36573a9b949b4e8a7898d1965b76119ae4"))    
     (185125, uint256("16990263ea82bd67b4b37b5e5daa27ee51266b4a3bb4a7b2836e343320b8eb34"))
-    (377937, uint256("e8bc14c0d0a59c0f3c3225a4ab1f5b83ca09087d85324997ce78606d4f59f26f"));    
+    (377937, uint256("e8bc14c0d0a59c0f3c3225a4ab1f5b83ca09087d85324997ce78606d4f59f26f"))    
+    (495630, uint256("f366b2027aa82fcf5435055ee0ab1c7da38bcc1fbdcafb5ed5677f3da6fbfc2f"));  
 static const Checkpoints::CCheckpointData data = {
     &mapCheckpoints,
-    1559896035,   // * UNIX timestamp of last checkpoint block
-    1101070,      // * total number of transactions between genesis and last checkpoint
+    1567001213,   // * UNIX timestamp of last checkpoint block
+    1458390,      // * total number of transactions between genesis and last checkpoint
                   //   (the tx=... number in the SetBestChain debug.log lines)
     2000          // * estimated number of transactions per day after checkpoint
 };
@@ -103,6 +104,8 @@ public:
         nModifierUpdateBlock = 1;
         nMaxMoneyOut = 21000000 * COIN;
         nMasternodeCollateral = 1000; 
+        nStakeMinConfirmations = 300;   // Required number of confirmations
+        nStakeMinAmount = 150 * COIN;    // Minimum required staking amount
 
         const char* pszTimestamp = "Every Generation Gets the Beach Villain It Deserves";
         CMutableTransaction txNew;
@@ -191,6 +194,9 @@ public:
         nMasternodeCountDrift = 4;
         nModifierUpdateBlock = 1; //approx Mon, 17 Apr 2017 04:00:00 GMT
         nMaxMoneyOut = 43199500 * COIN;
+        nMasternodeCollateral = 1000; 
+        nStakeMinConfirmations = 15;   // Required number of confirmations
+        nStakeMinAmount = 10 * COIN;    // Minimum required staking amount
 
         //! Modify the testnet genesis block so the timestamp is valid for a later start.
         genesis.nTime = 1537178400;

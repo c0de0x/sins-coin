@@ -511,13 +511,18 @@ Value getstakingstatus(const Array& params, bool fHelp)
             "\nExamples:\n" +
             HelpExampleCli("getstakingstatus", "") + HelpExampleRpc("getstakingstatus", ""));
 
+    CAmount nMinAmount = 0.0;
+    if (IsSporkActive(SPORK_18_STAKE_MINIMUM_SIZE)) {
+        nMinAmount = Params().Stake_MinAmount();
+    }
+    
     Object obj;
     obj.push_back(Pair("validtime", chainActive.Tip()->nTime > 1471482000));
     obj.push_back(Pair("haveconnections", !vNodes.empty()));
     if (pwalletMain) {
         obj.push_back(Pair("walletunlocked", !pwalletMain->IsLocked()));
         obj.push_back(Pair("mintablecoins", pwalletMain->MintableCoins()));
-        obj.push_back(Pair("enoughcoins", nReserveBalance <= pwalletMain->GetBalance()));
+        obj.push_back(Pair("enoughcoins", nReserveBalance <= pwalletMain->GetBalance() &&  pwalletMain->GetBalance() >= nMinAmount));
     }
     obj.push_back(Pair("mnsync", masternodeSync.IsSynced()));
 
